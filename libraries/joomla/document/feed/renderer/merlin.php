@@ -2,8 +2,8 @@
 /**
  * @version		$Id: merlin.php 15105 2010-02-27 14:59:11Z ian $
  * @package		Joomla.Framework
- * @subpackage	Document
- * @copyright	Copyright (C) 2005 - 2010 Open Source Matters. All rights reserved.
+ * @subpackage	    Document
+ * @copyright	    Copyright (C) 2005 - 2010 Open Source Matters. All rights reserved.
  * @license		GNU/GPL, see LICENSE.php
  * Joomla! is free software. This version may have been modified pursuant
  * to the GNU General Public License, and as distributed it includes or
@@ -16,11 +16,7 @@
 defined('JPATH_BASE') or die();
 
 /**
- * JDocumentRenderer_Merlin is a feed that implements the PBS RSS2.0 specification for feeds
- *
- * Please note that just by using this class you won't automatically
- * produce valid atom files. For example, you have to specify either an editor
- * for the feed or an author for every single feed item.
+ * JDocumentRenderer_Merlin generates a feed that implements the PBS RSS2.0 specification for feeds
  *
  * @package 	Joomla.Framework
  * @subpackage	Document
@@ -75,63 +71,55 @@ class JDocumentRendererMerlin extends JDocumentRenderer
 			}
 			$xml->startElement('category');
 			$xml->writeAttribute('domain', 'PBS/taxonomy/topic');
-			$xml->text('text');
+			$xml->text(htmlspecialchars($data->category, ENT_COMPAT, 'UTF-8'));
 			$xml->endElement(); //end category
 			$xml->writeElement('lastBuildDate', htmlspecialchars($now->toRFC822(), ENT_COMPAT, 'UTF-8') );
-			
+			$xml->writeElement('params');
 		if ($data->image!=null) {
 			$xml->startElement('image');
 				$xml->writeElement('url',$data->image->url);
 				$xml->writeElement('link',str_replace(' ','%20',$data->image->link) );
 			$xml->endElement(); //end image tag
 		}
-			
-			$xml->writeElement('pbscontent:program_name','blank'); //program Name like 'NOVA'
-			$xml->writeElement('pbscontent:producing_member_station', 'OETA');
-			$xml->writeElement('pbscontent:owner_member_station', 'OETA');
+		/* conditionals need to be added  to the following elements */
+			$xml->writeElement('pbscontent:program_name',$data->program_name); //program Name like 'NOVA'
+			$xml->writeElement('pbscontent:producing_member_station', $data->producing_station);
+			$xml->writeElement('pbscontent:owner_member_station', $data->owner_station);
+			$xml->writeElement('generator',$data->getGenerator());
 
-		
-/*		
-		$feed.= "		<generator>".$data->getGenerator()."</generator>\n";
-	
+		/* There are a couple of other properties that Joomla passes into this object by inheritance
+		 * $data->webmaster
+		 * $data->docs
+		 * $data->ttl
+		 * $data->rating
+		 * $data->skipHours
+		 * $data->skipDays
+		 */
+
+			
 		if ($data->language!="") {
-			$feed.= "		<language>".$data->language."</language>\n";
+			$xml->writeElement('language',$data->language);
 		}
 		if ($data->copyright!="") {
-			$feed.= "		<copyright>".htmlspecialchars($data->copyright,ENT_COMPAT, 'UTF-8')."</copyright>\n";
+			$xml->writeElement('copyright>',htmlspecialchars($data->copyright,ENT_COMPAT, 'UTF-8'));
 		}
 		if ($data->editorEmail!="") {
-			$feed.= "		<managingEditor>".htmlspecialchars($data->editorEmail, ENT_COMPAT, 'UTF-8').' ('.
-				htmlspecialchars($data->editor, ENT_COMPAT, 'UTF-8').")</managingEditor>\n";
+			$xml->writeElement("managingEditor",htmlspecialchars($data->editorEmail, ENT_COMPAT, 'UTF-8').' ('.htmlspecialchars($data->editor, ENT_COMPAT, 'UTF-8').")");
 		}
-		if ($data->webmaster!="") {
-			$feed.= "		<webMaster>".htmlspecialchars($data->webmaster, ENT_COMPAT, 'UTF-8')."</webMaster>\n";
-		}
-		if ($data->category!="") {
-			$feed.= "		<category>".htmlspecialchars($data->category, ENT_COMPAT, 'UTF-8')."</category>\n";
-		}
-		if ($data->docs!="") {
-			$feed.= "		<docs>".htmlspecialchars($data->docs, ENT_COMPAT, 'UTF-8')."</docs>\n";
-		}
-		if ($data->ttl!="") {
-			$feed.= "		<ttl>".htmlspecialchars($data->ttl, ENT_COMPAT, 'UTF-8')."</ttl>\n";
-		}
-		if ($data->rating!="") {
-			$feed.= "		<rating>".htmlspecialchars($data->rating, ENT_COMPAT, 'UTF-8')."</rating>\n";
-		}
-		if ($data->skipHours!="") {
-			$feed.= "		<skipHours>".htmlspecialchars($data->skipHours, ENT_COMPAT, 'UTF-8')."</skipHours>\n";
-		}
-		if ($data->skipDays!="") {
-			$feed.= "		<skipDays>".htmlspecialchars($data->skipDays, ENT_COMPAT, 'UTF-8')."</skipDays>\n";
-		}
-*/
+		
 		//begin items
-
 		foreach ($data->items as $item) {
 			$xml->startElement('item');
 			$xml->writeElement('title', htmlspecialchars(strip_tags($item->title), ENT_COMPAT, 'UTF-8'));
-			$xml->writeElement('description',strip_tags(str_replace(array("\r","\n",),' ', $item->description)));
+			$xml->writeElement('description',strip_tags(str_replace(array("\r","\n",),' ', $item->description))); //400 characters max
+			$xml->writeElement("media:description"); // A short description for the item 90 characters max
+			$xml->writeElement('author', $item->author);
+
+			$xml->startElement('category');
+			$xml->writeAttribute('domain', 'PBS/taxonomy/topic');
+			$xml->text(htmlspecialchars($item->category, ENT_COMPAT, 'UTF-8'));
+			$xml->endElement(); //end category
+
 			if ((strpos($item->link, 'http://') === false) and (strpos($item->link, 'https://') === false)) {
 				$item->link = str_replace(' ','%20',$url.$item->link);
 			}
@@ -152,19 +140,25 @@ class JDocumentRendererMerlin extends JDocumentRenderer
 				$xml->writeAttribute('type', $item->enclosure->type);
 				$xml->endElement();
 			}
-
+			/* Most of the native PBS Merlin RSS Requirements can be passed as article Parameters and that way not much core hacking is needed from the programmer
+			 * 
+			 */
+			$xml->writeElement('pbscontent:program_name',$item->program_name); //program Name like 'NOVA'
+			$xml->writeElement('pbscontent:producing_member_station', $item->producing_station);
+			$xml->writeElement('pbscontent:owner_member_station', $item->owner_station);
+			$xml->writeElement('pbscontent:modDate');
+			$xml->writeElement('dcterms:valid'); //Expiration date for the item
+			$xml->writeElement('pbscontent:nola_root','NOVA');
+			$xml->writeElement('pbscontent:nola_episode');
+			//$xml->writeElement('pbsvideo');
+			$xml->writeElement('pbscontent:type', 'webpage');
+			$xml->writeElement('pbscontent:distribution','local');
+			$xml->writeElement('media:rating');
+			$xml->writeElement('media:keywords');
+		
 /*
-			if ($data->items[$i]->authorEmail!="") {
-				$feed.= "			<author>".htmlspecialchars( $data->items[$i]->author, ENT_COMPAT, 'UTF-8')."</author>\n";
-			}
-			if ($data->items[$i]->category!="") {
-				$feed.= "			<category>".htmlspecialchars($data->items[$i]->category, ENT_COMPAT, 'UTF-8')."</category>\n";
-			}
-			if ($data->items[$i]->comments!="") {
-				$feed.= "			<comments>".htmlspecialchars($data->items[$i]->comments, ENT_COMPAT, 'UTF-8')."</comments>\n";
-			}
-
-*/
+ * Also passes $item->comments
+ */
 			$xml->endElement();
 		}
 		//end items
